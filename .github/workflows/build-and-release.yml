@@ -1,0 +1,142 @@
+name: Build and release ImmortalWrt PVE firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Build even if this upstream fingerprint already has a release
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # Sunday 03:37 Asia/Shanghai (Saturday 19:37 UTC), away from the hour peak.
+    - cron: '37 19 * * 6'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: immortalwrt-x86-pve-build
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    outputs:
+      immortalwrt_tag: ${{ steps.versions.outputs.immortalwrt_tag }}
+      openclash_tag: ${{ steps.versions.outputs.openclash_tag }}
+      core_sha: ${{ steps.versions.outputs.core_sha }}
+      release_tag: ${{ steps.versions.outputs.release_tag }}
+      should_build: ${{ steps.versions.outputs.should_build }}
+    steps:
+      - name: Check out build definitions
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Resolve stable upstream versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMMORTALWRT_SERIES: '24.10'
+          FORCE_BUILD: ${{ inputs.force || false }}
+        run: ./scripts/resolve-versions.sh
+
+  build:
+    needs: resolve
+    if: needs.resolve.outputs.should_build == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      IMMORTALWRT_TAG: ${{ needs.resolve.outputs.immortalwrt_tag }}
+      OPENCLASH_TAG: ${{ needs.resolve.outputs.openclash_tag }}
+      OPENCLASH_CORE_SHA: ${{ needs.resolve.outputs.core_sha }}
+      RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
+    steps:
+      - name: Check out build definitions
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Reclaim runner disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo apt-get clean
+          df -h
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            ack antlr3 asciidoc autoconf automake autopoint binutils bison \
+            build-essential bzip2 ccache clang cmake cpio curl \
+            device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib \
+            g++-multilib git libgnutls28-dev gperf haveged help2man intltool \
+            lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev \
+            libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev \
+            libreadline-dev libssl-dev libtool libyaml-dev lld llvm \
+            lrzsz msmtp nano ninja-build p7zip p7zip-full patch \
+            pkgconf python3 python3-pip python3-ply python3-docutils \
+            python3-pyelftools qemu-system-x86 qemu-utils re2c rsync scons \
+            squashfs-tools subversion swig texinfo uglifyjs unzip vim wget \
+            xmlto xxd zlib1g-dev zstd
+
+      - name: Cache downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            openwrt/dl
+            openwrt/.ccache
+          key: dl-${{ env.IMMORTALWRT_TAG }}-${{ hashFiles('configs/**', 'scripts/**') }}
+          restore-keys: |
+            dl-${{ env.IMMORTALWRT_TAG }}-
+
+      - name: Prepare exact sources and defaults
+        run: ./scripts/prepare-source.sh
+
+      - name: Validate resolved configuration
+        run: ./scripts/validate-config.sh openwrt/.config
+
+      - name: Compile firmware
+        run: ./scripts/build.sh
+
+      - name: Boot smoke test in QEMU
+        run: ./scripts/smoke-test.sh
+
+      - name: Collect release files
+        run: ./scripts/collect-artifacts.sh
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.RELEASE_TAG }}
+          path: dist/
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Publish immutable GitHub Release with gh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > release-notes.md <<EOF
+          Automated, reproducible PVE bypass-router build.
+
+          - ImmortalWrt: ${IMMORTALWRT_TAG}
+          - OpenClash: ${OPENCLASH_TAG}
+          - OpenClash core commit: ${OPENCLASH_CORE_SHA}
+          - Target: x86/64
+          - PVE images: legacy BIOS and UEFI QCOW2, plus compressed raw images
+          - IPv6: enabled
+          - LAN DHCPv4: disabled
+          - Default management address: 192.168.1.2/24, gateway 192.168.1.1
+
+          Verify every download with SHA256SUMS before importing it into PVE.
+          No proxy subscription, password, token, or private key is embedded.
+          EOF
+          gh release create "$RELEASE_TAG" dist/* \
+            --title "$RELEASE_TAG" \
+            --notes-file release-notes.md
+
+      - name: Show disk usage on failure or success
+        if: always()
+        run: df -h

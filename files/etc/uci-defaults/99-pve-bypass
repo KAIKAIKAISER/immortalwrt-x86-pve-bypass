@@ -1,0 +1,94 @@
+#!/bin/sh
+
+set -eu
+
+# Safe management defaults. Change these in LuCI or /etc/config/network before
+# connecting the VM to a LAN that already uses 192.168.1.2.
+uci -q set system.@system[0].hostname='ImmortalWrt-PVE-Bypass'
+uci -q set system.@system[0].timezone='CST-8'
+uci -q set system.@system[0].zonename='Asia/Shanghai'
+
+uci -q set network.lan.proto='static'
+uci -q set network.lan.ipaddr='192.168.1.2'
+uci -q set network.lan.netmask='255.255.255.0'
+uci -q set network.lan.gateway='192.168.1.1'
+uci -q delete network.lan.dns
+uci -q add_list network.lan.dns='127.0.0.1'
+uci -q set network.lan.ip6assign='64'
+uci -q set network.lan.ip6ifaceid='::2'
+
+# Generate a deployment-unique ULA /48 instead of publishing a shared prefix.
+if ! uci -q get network.globals.ula_prefix >/dev/null; then
+	random_hex="$(hexdump -n 5 -e '5/1 "%02x"' /dev/urandom)"
+	ula_prefix="fd$(echo "$random_hex" | cut -c1-2):$(echo "$random_hex" | cut -c3-6):$(echo "$random_hex" | cut -c7-10)::/48"
+	uci -q set network.globals='globals'
+	uci -q set network.globals.ula_prefix="$ula_prefix"
+fi
+
+# This VM is a bypass router, not the LAN's IPv4 DHCP server.
+uci -q set dhcp.lan.ignore='1'
+
+# Advertise this router as an IPv6 DNS server without claiming the IPv6
+# default route. The main router should advertise no competing RDNSS address.
+uci -q set dhcp.lan.ra='server'
+uci -q set dhcp.lan.dhcpv6='server'
+uci -q set dhcp.lan.ra_default='0'
+uci -q set dhcp.lan.ra_management='0'
+uci -q set dhcp.lan.ra_dns='1'
+
+# dnsmasq -> AdGuard Home. The second server is an emergency fallback only.
+uci -q set dhcp.@dnsmasq[0].noresolv='1'
+uci -q set dhcp.@dnsmasq[0].strictorder='1'
+uci -q set dhcp.@dnsmasq[0].cachesize='0'
+uci -q delete dhcp.@dnsmasq[0].server
+uci -q add_list dhcp.@dnsmasq[0].server='127.0.0.1#5335'
+uci -q add_list dhcp.@dnsmasq[0].server='223.5.5.5'
+
+# Intercept plain DNS from clients whose gateway is this VM. Router-originated
+# AdGuard/OpenClash traffic does not enter this LAN redirect.
+dns_redirect="$(uci -q add firewall redirect)"
+uci -q set firewall."$dns_redirect".name='Force-LAN-DNS'
+uci -q set firewall."$dns_redirect".src='lan'
+uci -q set firewall."$dns_redirect".src_dport='53'
+uci -q set firewall."$dns_redirect".dest_port='53'
+uci -q set firewall."$dns_redirect".proto='tcp udp'
+uci -q set firewall."$dns_redirect".target='DNAT'
+uci -q set firewall."$dns_redirect".family='any'
+
+# Do not enable flow offloading: it may bypass transparent-proxy rules.
+uci -q set firewall.@defaults[0].flow_offloading='0'
+uci -q set firewall.@defaults[0].flow_offloading_hw='0'
+
+# OpenClash is installed and IPv6-ready, but remains disabled until a valid
+# subscription/config is supplied. DNS on :7874 becomes AdGuard's preferred
+# upstream when OpenClash starts; AdGuard falls back to encrypted public DNS.
+uci -q set openclash.config.enable='0'
+uci -q set openclash.config.core_version='linux-amd64-v1'
+uci -q set openclash.config.ipv6_enable='1'
+uci -q set openclash.config.ipv6_dns='1'
+uci -q set openclash.config.enable_custom_dns='1'
+uci -q set openclash.config.append_default_dns='0'
+uci -q set openclash.config.router_self_proxy='1'
+uci -q set openclash.config.en_mode='fake-ip'
+uci -q set openclash.config.operation_mode='fake-ip'
+uci -q set openclash.config.enable_redirect_dns='0'
+
+# Argon is the default; Bootstrap remains installed as the recovery theme.
+uci -q set luci.main.mediaurlbase='/luci-static/argon'
+
+uci -q set adguardhome.config.enabled='1'
+uci -q set adguardhome.config.config='/etc/adguardhome.yaml'
+uci -q set adguardhome.config.workdir='/var/lib/adguardhome'
+
+uci commit system
+uci commit network
+uci commit dhcp
+uci commit firewall
+uci commit openclash
+uci commit luci
+uci commit adguardhome
+
+/etc/init.d/adguardhome enable
+/etc/init.d/qemu-ga enable 2>/dev/null || true
+
+exit 0

@@ -1,0 +1,83 @@
+http:
+  address: 0.0.0.0:3000
+  session_ttl: 720h
+  pprof:
+    enabled: false
+    port: 6060
+users: []
+auth_attempts: 5
+block_auth_min: 15
+language: zh-cn
+theme: auto
+dns:
+  bind_hosts:
+  - 127.0.0.1
+  - ::1
+  port: 5335
+  anonymize_client_ip: false
+  ratelimit: 0
+  refuse_any: true
+  upstream_dns:
+  - 127.0.0.1:7874
+  upstream_mode: load_balance
+  bootstrap_dns:
+  - 223.5.5.5
+  - 223.6.6.6
+  - 2400:3200::1
+  - 2400:3200:baba::1
+  fallback_dns:
+  - https://dns.alidns.com/dns-query
+  - https://doh.pub/dns-query
+  cache_size: 33554432
+  cache_ttl_min: 60
+  cache_ttl_max: 86400
+  cache_optimistic: true
+  # Disabled to avoid a PTR loop through dnsmasq, whose upstream is AdGuard.
+  use_private_ptr_resolvers: false
+filtering:
+  filtering_enabled: true
+  filters_update_interval: 24
+  protection_enabled: true
+  parental_enabled: false
+  safebrowsing_enabled: false
+  safe_search:
+    enabled: false
+    bing: true
+    duckduckgo: true
+    google: true
+    pixabay: true
+    yandex: true
+    youtube: true
+  blocked_response_ttl: 10
+filters:
+- enabled: true
+  url: https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt
+  name: AdGuard DNS Filter
+  id: 1
+- enabled: true
+  url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-easylist.txt
+  name: anti-AD Chinese Filter
+  id: 2
+whitelist_filters: []
+user_rules: []
+dhcp:
+  enabled: false
+querylog:
+  enabled: true
+  file_enabled: true
+  interval: 24h
+  size_memory: 1000
+  ignored: []
+statistics:
+  enabled: true
+  interval: 168h
+  ignored: []
+log:
+  file: ""
+  max_backups: 0
+  max_size: 10
+  max_age: 3
+  compress: true
+  local_time: true
+  verbose: false
+schema_version: 29
