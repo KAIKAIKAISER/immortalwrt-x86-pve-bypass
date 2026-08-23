@@ -53,6 +53,11 @@ NICs, and choose OVMF for the EFI image or SeaBIOS for the legacy image.
 - AdGuard Home: `http://192.168.1.2:3000/`
 - OpenClash: LuCI -> Services -> OpenClash
 
+Immediately set a strong ImmortalWrt `root` password with `passwd` from the PVE
+console or in LuCI. The preloaded AdGuard Home configuration also starts without
+a web administrator; create one before exposing port `3000` beyond the trusted
+LAN. No shared default credentials are embedded in the image.
+
 The image intentionally has no proxy subscription. Add one in OpenClash, verify
 the generated configuration, and then enable OpenClash.
 
