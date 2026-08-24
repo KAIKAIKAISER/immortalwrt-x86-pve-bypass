@@ -10,6 +10,7 @@ required=(
   CONFIG_PACKAGE_adguardhome
   CONFIG_PACKAGE_dnsmasq-full
   CONFIG_PACKAGE_luci-app-openclash
+  CONFIG_PACKAGE_luci-ssl-openssl
   CONFIG_PACKAGE_luci-theme-argon
   CONFIG_PACKAGE_luci-theme-bootstrap
   CONFIG_PACKAGE_qemu-ga
@@ -27,6 +28,11 @@ done
 
 if grep -qx 'CONFIG_PACKAGE_dnsmasq=y' "$config_file"; then
   echo 'dnsmasq and dnsmasq-full cannot both be selected' >&2
+  failed=1
+fi
+
+if grep -qx 'CONFIG_PACKAGE_libustream-mbedtls=y' "$config_file"; then
+  echo 'libustream-mbedtls conflicts with the default libustream-openssl backend' >&2
   failed=1
 fi
 
