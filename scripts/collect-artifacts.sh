@@ -13,6 +13,7 @@ mkdir -p "$dist_dir"
 
 find "$target_dir" -maxdepth 1 -type f \
   \( -name '*combined*.img.gz' -o -name '*combined*.qcow2' -o \
+     -name '*combined*.qcow2.gz' -o \
      -name '*.manifest' -o -name '*.buildinfo' -o -name 'profiles.json' \) \
   -exec cp -v {} "$dist_dir/" \;
 
