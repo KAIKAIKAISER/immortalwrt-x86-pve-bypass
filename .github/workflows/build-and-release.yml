@@ -81,6 +81,9 @@ jobs:
             squashfs-tools subversion swig texinfo uglifyjs unzip vim wget \
             xmlto xxd zlib1g-dev zstd
 
+      - name: Prepare exact sources and defaults
+        run: ./scripts/prepare-source.sh
+
       - name: Cache downloads
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
@@ -90,9 +93,6 @@ jobs:
           key: dl-${{ env.IMMORTALWRT_TAG }}-${{ hashFiles('configs/**', 'scripts/**') }}
           restore-keys: |
             dl-${{ env.IMMORTALWRT_TAG }}-
-
-      - name: Prepare exact sources and defaults
-        run: ./scripts/prepare-source.sh
 
       - name: Validate resolved configuration
         run: ./scripts/validate-config.sh openwrt/.config
