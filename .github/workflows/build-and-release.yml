@@ -77,7 +77,7 @@ jobs:
             libreadline-dev libssl-dev libtool libyaml-dev lld llvm \
             lrzsz msmtp nano ninja-build p7zip p7zip-full patch \
             pkgconf python3 python3-pip python3-ply python3-docutils \
-            python3-pyelftools ovmf qemu-system-x86 qemu-utils re2c rsync scons \
+            python3-pyelftools qemu-system-x86 re2c rsync scons \
             squashfs-tools subversion swig texinfo uglifyjs unzip vim wget \
             xmlto xxd zlib1g-dev zstd
 
@@ -125,7 +125,7 @@ jobs:
           - OpenClash: ${OPENCLASH_TAG}
           - OpenClash core commit: ${OPENCLASH_CORE_SHA}
           - Target: x86/64
-          - PVE images: legacy BIOS and UEFI QCOW2, plus compressed raw images
+          - PVE image: one compressed legacy BIOS raw IMG for SeaBIOS/scsi0
           - IPv6: enabled
           - LAN DHCPv4: disabled
           - Default management address: 192.168.1.2/24, gateway 192.168.1.1

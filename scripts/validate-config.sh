@@ -5,8 +5,7 @@ config_file="${1:-.config}"
 required=(
   CONFIG_TARGET_x86_64
   CONFIG_GRUB_IMAGES
-  CONFIG_GRUB_EFI_IMAGES
-  CONFIG_QCOW2_IMAGES
+  CONFIG_TARGET_IMAGES_GZIP
   CONFIG_PACKAGE_adguardhome
   CONFIG_PACKAGE_dnsmasq-full
   CONFIG_PACKAGE_luci-app-openclash
@@ -33,6 +32,16 @@ fi
 
 if grep -qx 'CONFIG_PACKAGE_libustream-mbedtls=y' "$config_file"; then
   echo 'libustream-mbedtls conflicts with the default libustream-openssl backend' >&2
+  failed=1
+fi
+
+if grep -qx 'CONFIG_GRUB_EFI_IMAGES=y' "$config_file"; then
+  echo 'EFI images are disabled: this build intentionally produces one legacy BIOS IMG format' >&2
+  failed=1
+fi
+
+if grep -qx 'CONFIG_QCOW2_IMAGES=y' "$config_file"; then
+  echo 'QCOW2 images are disabled: this build intentionally produces one raw IMG format' >&2
   failed=1
 fi
 

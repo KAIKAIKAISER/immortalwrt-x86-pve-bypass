@@ -17,6 +17,19 @@ uci -q add_list network.lan.dns='127.0.0.1'
 uci -q set network.lan.ip6assign='64'
 uci -q set network.lan.ip6ifaceid='::2'
 
+# Use a mainland-China ImmortalWrt package mirror by default. Keep the UCI
+# value so the upstream default-settings helper and later package updates use
+# the same mirror.
+china_opkg_mirror='https://mirror.nju.edu.cn/immortalwrt'
+uci -q get system.@imm_init[0] >/dev/null || uci -q add system imm_init >/dev/null
+uci -q set system.@imm_init[0].opkg_mirror="$china_opkg_mirror"
+if [ -f /etc/opkg/distfeeds.conf ]; then
+	sed -i.bak \
+		-e "s#https://downloads.immortalwrt.org#$china_opkg_mirror#g" \
+		-e "s#https://mirrors.vsean.net/openwrt#$china_opkg_mirror#g" \
+		/etc/opkg/distfeeds.conf
+fi
+
 # Generate a deployment-unique ULA /48 instead of publishing a shared prefix.
 if ! uci -q get network.globals.ula_prefix >/dev/null; then
 	random_hex="$(hexdump -n 5 -e '5/1 "%02x"' /dev/urandom)"

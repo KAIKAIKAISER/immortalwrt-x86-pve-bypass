@@ -23,11 +23,14 @@ dns:
   bootstrap_dns:
   - 223.5.5.5
   - 223.6.6.6
+  - 119.29.29.29
+  - 182.254.116.116
   - 2400:3200::1
   - 2400:3200:baba::1
   fallback_dns:
   - https://dns.alidns.com/dns-query
   - https://doh.pub/dns-query
+  - https://doh.360.cn/dns-query
   cache_size: 33554432
   cache_ttl_min: 60
   cache_ttl_max: 86400
@@ -55,7 +58,7 @@ filters:
   name: AdGuard DNS Filter
   id: 1
 - enabled: true
-  url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-easylist.txt
+  url: https://anti-ad.net/easylist.txt
   name: anti-AD Chinese Filter
   id: 2
 whitelist_filters: []

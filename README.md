@@ -6,12 +6,15 @@ OpenClash/Mihomo, common LuCI themes, and scheduled upstream synchronization.
 ## Included
 
 - ImmortalWrt stable `24.10.x`, automatically following patch releases only.
-- PVE-friendly legacy BIOS and UEFI QCOW2 images.
+- One PVE-friendly legacy BIOS raw disk image (`combined.img.gz`), matching a
+  SeaBIOS + `scsi0` VM layout.
 - VirtIO support and QEMU Guest Agent.
 - LuCI in Simplified Chinese.
 - Argon, Bootstrap, Material, and OpenWrt 2020 themes.
 - AdGuard Home with AdGuard DNS Filter and anti-AD.
 - OpenClash with an x86_64 Mihomo core, IPv6 enabled, and no embedded subscription.
+- Mainland-China defaults: NJU ImmortalWrt package mirror, AliDNS/Tencent DNS,
+  360 DoH fallback, and the anti-AD China filter endpoint.
 - Weekly upstream checks and immutable GitHub Releases.
 
 ## Default network behavior
@@ -35,17 +38,20 @@ port rules alone.
 
 ## PVE import
 
-Download and verify `SHA256SUMS`, then decompress the desired `qcow2.zst` file.
+Download and verify `SHA256SUMS`, then decompress the single `combined.img.gz`
+file. This build intentionally does not produce ISO, EFI, or QCOW2 variants in
+order to reduce GitHub Actions build time.
 Example commands on the PVE host:
 
 ```sh
-zstd -d immortalwrt-*-combined-efi.qcow2.zst
+gunzip immortalwrt-*-combined.img.gz
 qm create 120 --name immortalwrt-bypass --memory 2048 --cores 2 --cpu host
-qm importdisk 120 immortalwrt-*-combined-efi.qcow2 local-lvm
+qm importdisk 120 immortalwrt-*-combined.img local-lvm
 ```
 
-Attach the imported disk as SCSI with `VirtIO SCSI single`, add one or two VirtIO
-NICs, and choose OVMF for the EFI image or SeaBIOS for the legacy image.
+Attach the imported disk as `scsi0` with `VirtIO SCSI single`, add one or two
+VirtIO NICs, and keep the VM BIOS as SeaBIOS. If QEMU Guest Agent is enabled in
+PVE, enable it with `qm set 120 --agent enabled=1`.
 
 ## Services after first boot
 

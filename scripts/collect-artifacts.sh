@@ -12,14 +12,16 @@ dist_dir="$root_dir/dist"
 mkdir -p "$dist_dir"
 
 find "$target_dir" -maxdepth 1 -type f \
-  \( -name '*combined*.img.gz' -o -name '*combined*.qcow2' -o \
-     -name '*combined*.qcow2.gz' -o \
+  \( -name '*combined*.img.gz' -o \
      -name '*.manifest' -o -name '*.buildinfo' -o -name 'profiles.json' \) \
   -exec cp -v {} "$dist_dir/" \;
 
-while IFS= read -r -d '' image; do
-  zstd -T0 -19 --rm "$image"
-done < <(find "$dist_dir" -maxdepth 1 -type f -name '*.qcow2' -print0)
+shopt -s nullglob
+images=("$dist_dir"/*combined.img.gz)
+if [[ "${#images[@]}" -ne 1 ]]; then
+  echo "Expected exactly one raw combined IMG, found ${#images[@]}" >&2
+  exit 1
+fi
 
 cp "$root_dir/configs/x86_64-pve.config" "$dist_dir/requested.config"
 cp "$root_dir/openwrt/.config" "$dist_dir/resolved.config"
@@ -31,6 +33,10 @@ immortalwrt_commit=$(git -C "$root_dir/openwrt" rev-parse HEAD)
 openclash_tag=$OPENCLASH_TAG
 openclash_core_commit=$OPENCLASH_CORE_SHA
 openclash_core_archive_sha256=$(cat "$root_dir/core.sha256")
+image_format=raw-img.gz
+boot_mode=legacy-bios
+package_mirror=https://mirror.nju.edu.cn/immortalwrt
+adguard_china_filter=https://anti-ad.net/easylist.txt
 github_repository=${GITHUB_REPOSITORY:-local}
 github_run_id=${GITHUB_RUN_ID:-local}
 build_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
