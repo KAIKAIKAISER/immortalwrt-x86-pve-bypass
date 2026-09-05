@@ -27,7 +27,21 @@ fi
 
 if [[ "$image" == *.img.gz ]]; then
   temporary_image="$(mktemp --suffix=.img)"
+  # ImmortalWrt appends build metadata after the gzip stream. GNU gzip
+  # reports that valid stream plus trailing metadata as status 2, while the
+  # decompressed disk image is still usable.
+  set +e
   gzip -dc -- "$image" > "$temporary_image"
+  gzip_status=$?
+  set -e
+  if [[ "$gzip_status" -ne 0 && "$gzip_status" -ne 2 ]]; then
+    echo "Failed to decompress raw IMG (gzip status $gzip_status)" >&2
+    exit 1
+  fi
+  if [[ ! -s "$temporary_image" ]]; then
+    echo 'Decompressed raw IMG is empty' >&2
+    exit 1
+  fi
   image="$temporary_image"
 fi
 
